@@ -90,7 +90,7 @@ void MRF::MRFProcess()
                             {
                                 if(P.at<float>(n,m) < temp)
                                 {
-                                    sum = sum + M.at<float>(n,m);
+                                    sum = sum + P.at<float>(n,m);
                                     cnt ++;
                                     temp = P.at<float>(n,m);
                                 }
@@ -108,14 +108,14 @@ void MRF::MRFProcess()
     }
     // cout<<"Interpolation cost time: "<<timer_interpolation.elapsed() <<endl;
     depth_image_ = M;
-    // cv::Mat result(raw_image_.rows, raw_image_.cols, CV_8U);//把点投影到M上
+    // cv::Mat temp(raw_image_.rows, raw_image_.cols, CV_8U);//把点投影到M上
     // for(int i = 0; i < M.rows; i++)
     //     for(int j = 0; j < M.cols; j++)
     //     {
-    //         result.at<char>(i,j) =  M.at<float>(i,j)/max_depth_ *255;
+    //         temp.at<char>(i,j) =  M.at<float>(i,j)/max_depth_ *255;
     //     }
 
-    // cv::imshow("depthmap", result);
+    // cv::imshow("depthmap", temp);
     // cv::waitKey(0);
     // cv::destroyWindow("depthmap");
 
@@ -132,7 +132,7 @@ void MRF::MRFProcess()
     cv::Mat small_depth_image = depth_image_(rect);//用临近深度填充的深度图中的一小块
 
     //  开始正式Rarkov Random field
-    boost::timer timer_MRF;
+    
     Eigen::SparseMatrix < double > A_1 (TOTAL , TOTAL) ;//创建一个稀疏矩阵A_1
     Eigen::SparseMatrix < double > A_2 (TOTAL , TOTAL) ;//创建一个稀疏矩阵A_2
     Eigen::SparseMatrix < double > A (TOTAL , TOTAL) ;//创建一个稀疏矩阵A
@@ -165,7 +165,7 @@ void MRF::MRFProcess()
          triplets_b.push_back ( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
     b.setFromTriplets ( triplets_b.begin ( ) , triplets_b.end ( ) );// 初始化b
     long flag = 0;
-    double C = 0.01;
+    double C = 0.1;
     for(int i = 0; i < total_pix; i++ )
     {
         if (i == 0)//左上角
@@ -494,12 +494,13 @@ void MRF::MRFProcess()
          triplets_A_2.push_back ( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
     A_2.setFromTriplets ( triplets_A_2.begin ( ) , triplets_A_2.end ( ) );// 初始化A_2
     A = A_1 + A_2;  //  得到A
+    boost::timer timer_MRF;
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower|Eigen::Upper> cg;
     cg.compute(A);
     x = cg.solve(b);
     std::cout << "#iterations:     " << cg.iterations() << std::endl;
     std::cout << "estimated error: " << cg.error()      << std::endl;
-    cout<<"MRF cost time: "<<timer_MRF.elapsed() <<endl;
+    cout<<"CG porcess cost time: "<<timer_MRF.elapsed() <<endl;
     Mat result(small_depth_image.size().height,small_depth_image.size().width,CV_32F);//result 用于储存结果
     for(int i = 0; i < TOTAL; i++)
     {
@@ -529,12 +530,15 @@ void MRF::MRFProcess()
         point.b = _small_RGB_image(round(i/result.size().width),round(i%result.size().width))[0];
         result_cloud_rgb->points.push_back(point);
     }
-
-    pcl::visualization::PCLVisualizer result_viewer("result");
-    result_viewer.addPointCloud(result_cloud_rgb, "sample cloud");
-    result_viewer.setBackgroundColor(0,0,0);
-    result_viewer.addCoordinateSystem();
-    while(!result_viewer.wasStopped())
-        result_viewer.spinOnce();
+    result_cloud_ = result_cloud_rgb;
+    delete [] r;
+    delete [] c;
+    delete [] val;
+    // pcl::visualization::PCLVisualizer result_viewer("result");
+    // result_viewer.addPointCloud(result_cloud_rgb, "sample cloud");
+    // result_viewer.setBackgroundColor(0,0,0);
+    // result_viewer.addCoordinateSystem();
+    // while(!result_viewer.wasStopped())
+    //     result_viewer.spinOnce();
 
 }

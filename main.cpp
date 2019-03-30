@@ -14,16 +14,17 @@ int main(int argc, char **argv)
     PointCloudLoader::Ptr point_cloud_loader (new PointCloudLoader(data_file));
     ImageLoader::Ptr image_loader (new ImageLoader(data_file));
     Calibration::Ptr calibration (new Calibration);
-    MRF::Ptr mrf (new MRF);
 
-    // pcl::visualization::PCLVisualizer viewer("result");//pcl viewer
+    pcl::visualization::PCLVisualizer viewer("result");//pcl viewer
 
-    for(int i = 0; i < 2; i++)
+    for(int i = 0; i < 100; i++)
     {
+        cout << "fram number :" << i << endl;
         boost::timer timer;
         
         point_cloud_loader->readKittiPclBinData(i);
         image_loader->readKittiImage(i);
+        MRF::Ptr mrf (new MRF);
         mrf->calibration_ = calibration;
         mrf->raw_cloud_ = point_cloud_loader->raw_cloud_;
         mrf->raw_image_ = image_loader->image_;
@@ -39,12 +40,12 @@ int main(int argc, char **argv)
         // cv::imshow("image", mrf->raw_image_);
         // cv::waitKey(0);
         // cv::destroyWindow("image");
-        // viewer.addPointCloud(point_cloud_loader->raw_cloud_,to_string(i));
-        // viewer.setBackgroundColor(0,0,0);
-        // viewer.addCoordinateSystem();
-        // viewer.spin();
-        // viewer.removeCoordinateSystem();
-        // viewer.removeAllPointClouds(); 
+        viewer.addPointCloud(mrf->result_cloud_,to_string(i));
+        viewer.setBackgroundColor(0,0,0);
+        viewer.addCoordinateSystem();
+        viewer.spin();
+        viewer.removeCoordinateSystem();
+        viewer.removeAllPointClouds(); 
     }
 
     return 0;
