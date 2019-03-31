@@ -10,7 +10,7 @@
 
 int main(int argc, char **argv)
 {
-    string data_file = "/home/icey/Desktop/project/KITTI/2011_09_26_drive_0005_sync";
+    string data_file = "/home/icey/Desktop/project/KITTI/2011_09_26_drive_0001_sync";
     PointCloudLoader::Ptr point_cloud_loader (new PointCloudLoader(data_file));
     ImageLoader::Ptr image_loader (new ImageLoader(data_file));
     Calibration::Ptr calibration (new Calibration);

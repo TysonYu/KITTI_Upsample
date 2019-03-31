@@ -165,7 +165,7 @@ void MRF::MRFProcess()
          triplets_b.push_back ( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
     b.setFromTriplets ( triplets_b.begin ( ) , triplets_b.end ( ) );// 初始化b
     long flag = 0;
-    double C = 0.1;
+    double C = 0.01;
     for(int i = 0; i < total_pix; i++ )
     {
         if (i == 0)//左上角
@@ -506,7 +506,26 @@ void MRF::MRFProcess()
     {
         result.at<float>(i/result.size().width,i%result.size().width) = x(i);
     }
+    // 锐化深度图边缘
+    cv::Mat kernel(3,3,CV_32F,cv::Scalar(0));
+    kernel.at<float>(1,1) = 5.0;
+    kernel.at<float>(0,1) = -1.0;
+    kernel.at<float>(1,0) = -1.0;
+    kernel.at<float>(1,2) = -1.0;
+    kernel.at<float>(2,1) = -1.0;
+    cv::Mat mask(small_depth_image.rows, small_depth_image.cols, CV_32F);
+    cv::filter2D(result,result,result.depth(),kernel);
+    //  show temp result (depth map)
+    // cv::Mat temp(small_depth_image.rows, small_depth_image.cols, CV_8U);//把点投影到M上
+    // for(int i = 0; i < small_depth_image.rows; i++)
+    //     for(int j = 0; j < small_depth_image.cols; j++)
+    //     {
+    //         temp.at<char>(i,j) =  result.at<float>(i,j);
+    //     }
 
+    // cv::imshow("depthmap", temp);
+    // cv::waitKey(0);
+    // cv::destroyWindow("depthmap");
     // 深度图返回点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr result_cloud_xyz (new pcl::PointCloud<pcl::PointXYZ>);
     for(int i = 0; i < TOTAL; i++)
