@@ -15,6 +15,7 @@ public:
     Calibration::Ptr calibration_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr raw_cloud_;
     cv::Mat raw_image_;
+    cv::Mat raw_image_gray_;
     double max_depth_ = 0;
     cv::Mat_<cv::Vec3b> _small_RGB_image_;
     cv::Mat depth_image_;

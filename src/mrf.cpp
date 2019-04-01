@@ -39,7 +39,109 @@ void MRF::MRFProcess()
                 M.at<float>(raw_cloud_->points[i].y,raw_cloud_->points[i].x) = raw_cloud_->points[i].z;
         }
     }
+
+    //  结合深度图和彩色图像的颜色进行上采样．
+    cv::cvtColor(raw_image_, raw_image_gray_, CV_RGB2GRAY);//把图片转化为灰度图
     for(int count = 0; count < 9; count ++)
+    {
+        if (count%2 == 0) 
+        {
+            for(int i = 1; i < raw_image_.rows-1; i++)
+            {
+                for(int j = 1; j < raw_image_.cols-1; j++)
+                {
+                    if(M.at<float>(i,j) == max_depth_)
+                    {
+                        int flag[4] = {0,0,0,0};//  上下左右
+                        int gray_diference[4] = {0,0,0,0};
+                        float neighbor_depth[4] = {0,0,0,0};
+                        float sum = 0;
+                        int cnt = 0;
+                        int count = 0;
+                        neighbor_depth[0] = M.at<float>(i-1,j);
+                        neighbor_depth[1] = M.at<float>(i+1,j);
+                        neighbor_depth[2] = M.at<float>(i,j-1);
+                        neighbor_depth[3] = M.at<float>(i,j+1);
+                        gray_diference[0] = abs(raw_image_gray_.at<char>(i-1,j) - raw_image_gray_.at<char>(i,j));
+                        gray_diference[1] = abs(raw_image_gray_.at<char>(i+1,j) - raw_image_gray_.at<char>(i,j));
+                        gray_diference[2] = abs(raw_image_gray_.at<char>(i,j-1) - raw_image_gray_.at<char>(i,j));
+                        gray_diference[3] = abs(raw_image_gray_.at<char>(i,j+1) - raw_image_gray_.at<char>(i,j));
+                        if(neighbor_depth[0] < max_depth_ && gray_diference[0] < 10) flag[0] =1;
+                        if(neighbor_depth[1] < max_depth_ && gray_diference[1] < 10) flag[1] =1;
+                        if(neighbor_depth[2] < max_depth_ && gray_diference[2] < 10) flag[2] =1;
+                        if(neighbor_depth[3] < max_depth_ && gray_diference[3] < 10) flag[3] =1;
+                        for(int k = 0; k < 4; k++)
+                        {
+                            if(flag[k] == 1 && max_depth_ > neighbor_depth[k])
+                            {
+                                sum = sum + neighbor_depth[k] * (10 - gray_diference[k]);
+                                cnt = cnt + (10 - gray_diference[k]);
+                                count ++;
+                            }
+                        }
+                        if(count > 0)
+                        {
+                            P.at<float>(i,j) = sum/cnt;
+                            // cout << cnt << endl;
+                        }
+                            
+                        else
+                            P.at<float>(i,j) = M.at<float>(i,j);
+                    }
+                    else
+                        P.at<float>(i,j) = M.at<float>(i,j);
+                }
+            }
+        }
+        else
+        {
+            for(int i = 1; i < raw_image_.rows-1; i++)
+            {
+                for(int j = 1; j < raw_image_.cols-1; j++)
+                {
+                    if(P.at<float>(i,j) == max_depth_)
+                    {
+                        int flag[4] = {0,0,0,0};//  上下左右
+                        int gray_diference[4] = {0,0,0,0};
+                        float neighbor_depth[4] = {0,0,0,0};
+                        float sum = 0;
+                        int cnt = 0;
+                        int count = 0;
+                        neighbor_depth[0] = P.at<float>(i-1,j);
+                        neighbor_depth[1] = P.at<float>(i+1,j);
+                        neighbor_depth[2] = P.at<float>(i,j-1);
+                        neighbor_depth[3] = P.at<float>(i,j+1);
+                        gray_diference[0] = abs(raw_image_gray_.at<char>(i-1,j) - raw_image_gray_.at<char>(i,j));
+                        gray_diference[1] = abs(raw_image_gray_.at<char>(i+1,j) - raw_image_gray_.at<char>(i,j));
+                        gray_diference[2] = abs(raw_image_gray_.at<char>(i,j-1) - raw_image_gray_.at<char>(i,j));
+                        gray_diference[3] = abs(raw_image_gray_.at<char>(i,j+1) - raw_image_gray_.at<char>(i,j));
+                        if(neighbor_depth[0] < max_depth_ && gray_diference[0] < 10) flag[0] =1;
+                        if(neighbor_depth[1] < max_depth_ && gray_diference[1] < 10) flag[1] =1;
+                        if(neighbor_depth[2] < max_depth_ && gray_diference[2] < 10) flag[2] =1;
+                        if(neighbor_depth[3] < max_depth_ && gray_diference[3] < 10) flag[3] =1;
+                        for(int k = 0; k < 4; k++)
+                        {
+                            if(flag[k] == 1 && max_depth_ > neighbor_depth[k])
+                            {
+                                sum = sum + neighbor_depth[k] * (10 - gray_diference[k]);
+                                cnt = cnt + (10 - gray_diference[k]);
+                                count ++;
+                            }
+                        }
+                        if(count > 0)
+                            M.at<float>(i,j) = sum/cnt;
+                        else
+                            M.at<float>(i,j) = P.at<float>(i,j);
+                    }
+                    else
+                        M.at<float>(i,j) = P.at<float>(i,j);
+                }
+            }
+        }
+    }
+
+    //  只使用稀疏深度点进行差值采样的简单方法．    
+    for(int count = 0; count < 5; count ++)
     {
         if (count%2 == 0) 
         {
@@ -108,16 +210,16 @@ void MRF::MRFProcess()
     }
     // cout<<"Interpolation cost time: "<<timer_interpolation.elapsed() <<endl;
     depth_image_ = M;
-    // cv::Mat temp(raw_image_.rows, raw_image_.cols, CV_8U);//把点投影到M上
+    // cv::Mat temp_1(raw_image_.rows, raw_image_.cols, CV_8U);//把点投影到M上
     // for(int i = 0; i < M.rows; i++)
     //     for(int j = 0; j < M.cols; j++)
     //     {
-    //         temp.at<char>(i,j) =  M.at<float>(i,j)/max_depth_ *255;
+    //         temp_1.at<char>(i,j) =  M.at<float>(i,j)/max_depth_ *255;
     //     }
 
-    // cv::imshow("depthmap", temp);
+    // cv::imshow("depthmap_1", temp_1);
     // cv::waitKey(0);
-    // cv::destroyWindow("depthmap");
+    // cv::destroyWindow("depthmap_1");
 
     //  取出要用的部分图像
     for(int i = 0; i < raw_image_.rows; i++)
@@ -494,6 +596,7 @@ void MRF::MRFProcess()
          triplets_A_2.push_back ( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
     A_2.setFromTriplets ( triplets_A_2.begin ( ) , triplets_A_2.end ( ) );// 初始化A_2
     A = A_1 + A_2;  //  得到A
+    cout << "starting cg calculation ........." << endl;
     boost::timer timer_MRF;
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower|Eigen::Upper> cg;
     cg.compute(A);
@@ -507,14 +610,18 @@ void MRF::MRFProcess()
         result.at<float>(i/result.size().width,i%result.size().width) = x(i);
     }
     // 锐化深度图边缘
-    cv::Mat kernel(3,3,CV_32F,cv::Scalar(0));
-    kernel.at<float>(1,1) = 5.0;
-    kernel.at<float>(0,1) = -1.0;
-    kernel.at<float>(1,0) = -1.0;
-    kernel.at<float>(1,2) = -1.0;
-    kernel.at<float>(2,1) = -1.0;
-    cv::Mat mask(small_depth_image.rows, small_depth_image.cols, CV_32F);
-    cv::filter2D(result,result,result.depth(),kernel);
+    // cv::Mat kernel(3,3,CV_32F,cv::Scalar(0));
+    // kernel.at<float>(0,0) = 0.0;
+    // kernel.at<float>(0,1) = -1.0;
+    // kernel.at<float>(0,2) = 0.0;
+    // kernel.at<float>(1,0) = -1.0;
+    // kernel.at<float>(1,1) = 5.0;
+    // kernel.at<float>(1,2) = -1.0;
+    // kernel.at<float>(2.0) = 0.0;
+    // kernel.at<float>(2,1) = -1.0;
+    // kernel.at<float>(2.2) = 0.0;
+    // cv::Mat mask(small_depth_image.rows, small_depth_image.cols, CV_32F);
+    // cv::filter2D(result,result,result.depth(),kernel);
     //  show temp result (depth map)
     // cv::Mat temp(small_depth_image.rows, small_depth_image.cols, CV_8U);//把点投影到M上
     // for(int i = 0; i < small_depth_image.rows; i++)
@@ -526,6 +633,7 @@ void MRF::MRFProcess()
     // cv::imshow("depthmap", temp);
     // cv::waitKey(0);
     // cv::destroyWindow("depthmap");
+    
     // 深度图返回点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr result_cloud_xyz (new pcl::PointCloud<pcl::PointXYZ>);
     for(int i = 0; i < TOTAL; i++)
