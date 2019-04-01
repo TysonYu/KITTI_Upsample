@@ -40,6 +40,6 @@ using cv::Mat;
 #include <fstream>
 #include <sstream>
 #include <boost/timer.hpp>
-
+#include <cmath>
 using namespace std;
 #endif  //COMMON_INCLUDE_H
