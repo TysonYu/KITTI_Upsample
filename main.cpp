@@ -32,10 +32,7 @@ int main(int argc, char **argv)
 
         cout<<"total cost time: "<<timer.elapsed() <<endl;
         // cv::waitKey(10);
-
-
-
-
+        usleep(10000);
 
         // cv::imshow("image", mrf->raw_image_);
         // cv::waitKey(0);
