@@ -41,5 +41,13 @@ using cv::Mat;
 #include <sstream>
 #include <boost/timer.hpp>
 #include <cmath>
+#include <cstdlib>
+#include <queue>
+
+//  thread
+#include <pthread.h>
+#include <thread>
+#include <mutex>
+
 using namespace std;
 #endif  //COMMON_INCLUDE_H

@@ -141,7 +141,7 @@ void MRF::MRFProcess()
     }
 
     //  只使用稀疏深度点进行差值采样的简单方法．    
-    for(int count = 0; count < 5; count ++)
+    for(int count = 0; count < 9; count ++)
     {
         if (count%2 == 0) 
         {
@@ -216,7 +216,6 @@ void MRF::MRFProcess()
     //     {
     //         temp_1.at<char>(i,j) =  M.at<float>(i,j)/max_depth_ *255;
     //     }
-
     // cv::imshow("depthmap_1", temp_1);
     // cv::waitKey(0);
     // cv::destroyWindow("depthmap_1");
@@ -238,8 +237,8 @@ void MRF::MRFProcess()
     Eigen::SparseMatrix < double > A_1 (TOTAL , TOTAL) ;//创建一个稀疏矩阵A_1
     Eigen::SparseMatrix < double > A_2 (TOTAL , TOTAL) ;//创建一个稀疏矩阵A_2
     Eigen::SparseMatrix < double > A (TOTAL , TOTAL) ;//创建一个稀疏矩阵A
-    Eigen::SparseMatrix < double > b (TOTAL , 1) ;//创建一个稀疏矩阵b
-    Eigen::VectorXd x (TOTAL) ;//创建向量储存结果
+    Eigen::VectorXd x (TOTAL);//创建向量储存结果
+    Eigen::VectorXd b (TOTAL);
     std::vector < Eigen::Triplet < double > > triplets_A_1 ;//创建一个用于初始化稀疏矩阵的向量A_1
     std::vector < Eigen::Triplet < double > > triplets_b ;//创建一个用于初始化稀疏矩阵的向量b
     std::vector < Eigen::Triplet < double > > triplets_A_2 ;//创建一个用于初始化稀疏矩阵的向量A_2
@@ -255,19 +254,14 @@ void MRF::MRFProcess()
         val[i] = 1;
     }
     for ( int i = 0 ; i < total_pix ; i++ )
-         triplets_A_1.push_back ( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
+         triplets_A_1.emplace_back ( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
     A_1.setFromTriplets ( triplets_A_1.begin ( ) , triplets_A_1.end ( ) );// 初始化A_1
     for(int  i = 0; i < total_pix; i++)
     {
-        val[i] = 0;
-        c[i] = 0;
-            val[i] =  small_depth_image.at<float>(i/small_depth_image.size().width,i%small_depth_image.size().width);
+        b(i) = small_depth_image.at<float>(i/small_depth_image.size().width,i%small_depth_image.size().width);
     }
-    for ( int i = 0 ; i < total_pix ; i++ )
-         triplets_b.push_back ( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
-    b.setFromTriplets ( triplets_b.begin ( ) , triplets_b.end ( ) );// 初始化b
     long flag = 0;
-    double C = 0.01;
+    double C = 0.00001;
     for(int i = 0; i < total_pix; i++ )
     {
         if (i == 0)//左上角
@@ -593,14 +587,19 @@ void MRF::MRFProcess()
         }
     }
     for ( int i = 0 ; i < flag ; i++ )
-         triplets_A_2.push_back ( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
+         triplets_A_2.emplace_back( Eigen::Triplet < double >(r[i] , c[i] , val[i]) );
+    delete [] r;
+    delete [] c;
+    delete [] val;
     A_2.setFromTriplets ( triplets_A_2.begin ( ) , triplets_A_2.end ( ) );// 初始化A_2
     A = A_1 + A_2;  //  得到A
     cout << "starting cg calculation ........." << endl;
     boost::timer timer_MRF;
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower|Eigen::Upper> cg;
+    cg.setMaxIterations(100);
     cg.compute(A);
-    x = cg.solve(b);
+    x = cg.solveWithGuess(b,b);
+    // x =b;
     std::cout << "#iterations:     " << cg.iterations() << std::endl;
     std::cout << "estimated error: " << cg.error()      << std::endl;
     cout<<"CG porcess cost time: "<<timer_MRF.elapsed() <<endl;
@@ -612,13 +611,13 @@ void MRF::MRFProcess()
     // 锐化深度图边缘
     // cv::Mat kernel(3,3,CV_32F,cv::Scalar(0));
     // kernel.at<float>(0,0) = 0.0;
-    // kernel.at<float>(0,1) = -1.0;
+    // kernel.at<float>(0,1) = 1.0;
     // kernel.at<float>(0,2) = 0.0;
-    // kernel.at<float>(1,0) = -1.0;
-    // kernel.at<float>(1,1) = 5.0;
-    // kernel.at<float>(1,2) = -1.0;
+    // kernel.at<float>(1,0) = 1.0;
+    // kernel.at<float>(1,1) = -3.0;
+    // kernel.at<float>(1,2) = 1.0;
     // kernel.at<float>(2.0) = 0.0;
-    // kernel.at<float>(2,1) = -1.0;
+    // kernel.at<float>(2,1) = 1.0;
     // kernel.at<float>(2.2) = 0.0;
     // cv::Mat mask(small_depth_image.rows, small_depth_image.cols, CV_32F);
     // cv::filter2D(result,result,result.depth(),kernel);
@@ -627,7 +626,7 @@ void MRF::MRFProcess()
     // for(int i = 0; i < small_depth_image.rows; i++)
     //     for(int j = 0; j < small_depth_image.cols; j++)
     //     {
-    //         temp.at<char>(i,j) =  result.at<float>(i,j);
+    //         temp.at<char>(i,j) =  abs(result.at<float>(i,j) - small_depth_image.at<float>(i,j));
     //     }
 
     // cv::imshow("depthmap", temp);
@@ -642,7 +641,7 @@ void MRF::MRFProcess()
         point.z = x(i);
         point.x = i%result.size().width * point.z;
         point.y = i/result.size().width * point.z;
-        result_cloud_xyz->points.push_back(point);
+        result_cloud_xyz->points.emplace_back(point);
     }
     pcl::transformPointCloud (*result_cloud_xyz, *result_cloud_xyz, calibration_->intrisic_.inverse());//image，Z上未归一化的像素坐标系
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr result_cloud_rgb (new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -655,12 +654,10 @@ void MRF::MRFProcess()
         point.r = _small_RGB_image(round(i/result.size().width),round(i%result.size().width))[2];//round() most closed number
         point.g = _small_RGB_image(round(i/result.size().width),round(i%result.size().width))[1];
         point.b = _small_RGB_image(round(i/result.size().width),round(i%result.size().width))[0];
-        result_cloud_rgb->points.push_back(point);
+        result_cloud_rgb->points.emplace_back(point);
     }
     result_cloud_ = result_cloud_rgb;
-    delete [] r;
-    delete [] c;
-    delete [] val;
+    usleep(1000);
     // pcl::visualization::PCLVisualizer result_viewer("result");
     // result_viewer.addPointCloud(result_cloud_rgb, "sample cloud");
     // result_viewer.setBackgroundColor(0,0,0);
