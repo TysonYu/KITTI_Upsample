@@ -599,6 +599,7 @@ void MRF::MRFProcess()
     cout << "starting cg calculation ........." << endl;
     boost::timer timer_MRF;
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower|Eigen::Upper> cg;
+    cg.setMaxIterations(100);
     cg.compute(A);
     x = cg.solve(b);
     std::cout << "#iterations:     " << cg.iterations() << std::endl;
